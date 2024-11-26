@@ -1,26 +1,28 @@
 from django.urls import path
 from .views import (
-    CustomerRegistration,
+    CustomerProcess,
     CustomerDetail,
-    ProductCreation,
-    PaymentCreation,
+    ProductProcess,
+    Payment,
     TransactionDetail,
     TransactionsCustomersMapping,
     TransactionsAmountMapping,
     CustomersCompaniesMapping,
     ProductsPriceMapping,
+    TransactionProcess
 )
 
 
 urlpatterns = [
-    path("customer/", CustomerRegistration.as_view(), name="Customer-register"),
+    path("customer/", CustomerProcess.as_view(), name="Customer-register"),
     path(
         "customer/id=<int:customer_id>/",
         CustomerDetail.as_view(),
         name="Customer-detail",
     ),
-    path("product/", ProductCreation.as_view(), name="Product-create"),
-    path("payment/", PaymentCreation.as_view(), name="Payment-create"),
+    path("product/", ProductProcess.as_view(), name="Product-create"),
+    path("payment/", Payment.as_view(), name="Payment-create"),
+    path("transaction/", TransactionProcess.as_view(), name='Transaction-info'),
     path(
         "transaction/id=<int:transaction_id>/",
         TransactionDetail.as_view(),

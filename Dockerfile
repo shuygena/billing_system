@@ -5,8 +5,8 @@ ENV PYTHONUNBUFFERED=1
 
 COPY . .
 
-# RUN pip3 install --no-index --find-links=wheelhouse wheelhouse/*
-RUN pip3 install -r requirements.txt
+RUN pip3 install --no-index --find-links=wheelhouse wheelhouse/*
+# RUN pip3 install -r requirements.txt
 
 WORKDIR ./bs_project
 

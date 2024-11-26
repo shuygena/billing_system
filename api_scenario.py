@@ -116,6 +116,14 @@ def get_request(request_path):
     except Exception as e:
         log.warning("Failed request: %s", e)
 
+def get_request_with_params(request_path, query_params):
+    try:
+        response = requests.get(request_path, params=query_params)
+        if response.status_code == 200:
+            log.info(f"request:{request_path}\n {response.text}")
+    except Exception as e:
+        log.warning("Failed request: %s", e)
+
 
 def api_scenario():
     customers = {customer["name"]: add_customer(customer) for customer in CUSTOMERS}
@@ -133,6 +141,18 @@ def api_scenario():
     for path in p_list:
         get_request(path)
 
+    get_request_with_params(f"{BASE_URL}/customer/",
+                            {"id": 1})
+    get_request_with_params(f"{BASE_URL}/customer/",
+                            {"company": "Minion"})
+    get_request_with_params(f"{BASE_URL}/transaction/",
+                            {"id": 1})
+    get_request_with_params(f"{BASE_URL}/transaction/",
+                            {"customer_id": 1})
+    get_request_with_params(f"{BASE_URL}/transaction/",
+                            {"amount_range": 100, "currency": "RUB"})
+    get_request_with_params(f"{BASE_URL}/product/",
+                            {"price_range": 13.60, "currency": "USD"})
 
 if __name__ == "__main__":
     api_scenario()

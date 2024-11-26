@@ -10,10 +10,72 @@ from .sql_queries import (
     get_transactions_by_amount_range,
     get_customers_by_company,
     get_product_by_price_range,
+    get_transaction
 )
 
 
-class CustomerRegistration(APIView):
+def get_customer_detail(customer_id):
+    try:
+        customer = Customer.objects.get(customer_id=customer_id)
+    except Customer.DoesNotExist:
+        return JsonResponse(
+            {"error": "Customer not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+    serializer = CustomerSerializer(customer)
+    return JsonResponse(serializer.data)
+
+
+def get_customers_list(company):
+    # TODO: check existing company, if it doesn't exist - return error
+    customers = get_customers_by_company(company)
+    return JsonResponse(customers, safe=False)
+
+
+def get_products_list(price_range, currency):
+    if currency not in ("RUB", "USD"):
+        return JsonResponse(
+            {"error": "Not valid currency"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    ps = get_product_by_price_range(price_range, currency)
+    return JsonResponse(ps, safe=False)
+
+
+def get_transaction_info(transaction_id):
+    transaction_row = get_transaction(transaction_id)
+    return JsonResponse(transaction_row, safe=False)
+
+
+def get_transactions_list_by_amount(amount_range, currency):
+    if currency not in ("RUB", "USD"):
+        return JsonResponse(
+            {"error": "Not valid currency"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    ts = get_transactions_by_amount_range(amount_range, currency)
+    return JsonResponse(ts, safe=False)
+
+
+def get_transactions_list_by_customer(customer_id):
+    # TODO: check existing customer_id, if it doesn't exist - return error
+    ts = get_transactions_by_customer_id(customer_id)
+    return JsonResponse(ts, safe=False)
+
+
+class CustomerProcess(APIView):
+    def get(self, request):
+        parameters_number = len(request.GET)
+        if parameters_number == 0:
+            super().http_method_not_allowed(request)
+        customer_id = request.GET.get("id")
+        company = request.GET.get("company")
+        if customer_id and parameters_number == 1:
+            if customer_id.isdigit():
+                return get_customer_detail(customer_id)
+        elif company and parameters_number == 1:
+            return get_customers_list(company)
+        return JsonResponse(
+            {"error": "Bad request"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
     def post(self, request):
         serializer = CustomerSerializer(data=request.data)
         if serializer.is_valid():
@@ -25,19 +87,23 @@ class CustomerRegistration(APIView):
         return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CustomerDetail(APIView):
-    def get(self, request, customer_id):
-        try:
-            customer = Customer.objects.get(customer_id=customer_id)
-        except Customer.DoesNotExist:
-            return JsonResponse(
-                {"error": "Customer not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-        serializer = CustomerSerializer(customer)
-        return JsonResponse(serializer.data)
+class ProductProcess(APIView):
+    def get(self, request):
+        parameters_number = len(request.GET)
+        if parameters_number == 0:
+            super().http_method_not_allowed(request)
+        price_range = request.GET.get("price_range")
+        currency = request.GET.get("currency")
+        if price_range and currency and parameters_number == 2:
+            try:
+                float(price_range)
+                return get_products_list(price_range, currency)
+            except ValueError:
+                return JsonResponse({"error": "Can't count price"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({"error": "Bad request"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-
-class ProductCreation(APIView):
     def post(self, request):
         serializer = ProductSerializer(data=request.data)
         if serializer.is_valid():
@@ -49,7 +115,7 @@ class ProductCreation(APIView):
         return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class PaymentCreation(APIView):
+class Payment(APIView):
     def bank_simulate(self, transaction, data):
         transaction_instance = Transaction.objects.get(
             transaction_id=transaction.transaction_id
@@ -73,47 +139,56 @@ class PaymentCreation(APIView):
         return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class TransactionProcess(APIView):
+    def get(self, request):
+        parameters_number = len(request.GET)
+        transaction_id = request.GET.get("id")
+        amount_range = request.GET.get("amount_range")
+        currency = request.GET.get("currency")
+        customer_id = request.GET.get("customer_id")
+        if transaction_id and parameters_number == 1:
+            if transaction_id.isdigit():
+                return get_transaction_info(transaction_id)
+        elif amount_range and currency and parameters_number == 2:
+            try:
+                float(amount_range)
+                return get_transactions_list_by_amount(amount_range, currency)
+            except ValueError:
+                return JsonResponse({"error": "Bad request"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+        elif customer_id and parameters_number == 1:
+            if customer_id.isdigit():
+                return get_transactions_list_by_customer(customer_id)
+        return JsonResponse(
+            {"error": "Bad request"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class CustomerDetail(APIView):
+    def get(self, request, customer_id):
+        return get_customer_detail(customer_id)
+
+
 class TransactionDetail(APIView):
     def get(self, request, transaction_id):
-        try:
-            transaction = Transaction.objects.get(transaction_id=transaction_id)
-        except Transaction.DoesNotExist:
-            return JsonResponse(
-                {"error": "Transaction not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-        serializer = TransactionSerializer(transaction)
-        return JsonResponse(serializer.data)
+        return get_transaction_info(transaction_id)
 
 
 class TransactionsCustomersMapping(APIView):
-    # TODO: check existing customer_id, if it doesn't exist - return error
     def get(self, request, customer_id):
-        ts = get_transactions_by_customer_id(customer_id)
-        return JsonResponse(ts, safe=False)
+        return get_transactions_list_by_customer(customer_id)
 
 
 class TransactionsAmountMapping(APIView):
     def get(self, request, amount_range, currency):
-        if currency not in ("RUB", "USD"):
-            return JsonResponse(
-                {"error": "Not valid currency"}, status=status.HTTP_400_BAD_REQUEST
-            )
-        ts = get_transactions_by_amount_range(amount_range, currency)
-        return JsonResponse(ts, safe=False)
+        return get_transactions_list_by_amount(amount_range, currency)
 
 
 class CustomersCompaniesMapping(APIView):
-    # TODO: check existing company, if it doesn't exist - return error
     def get(self, request, company):
-        cs = get_customers_by_company(company)
-        return JsonResponse(cs, safe=False)
+        return get_customers_list(company)
 
 
 class ProductsPriceMapping(APIView):
     def get(self, request, price_range, currency):
-        if currency not in ("RUB", "USD"):
-            return JsonResponse(
-                {"error": "Not valid currency"}, status=status.HTTP_400_BAD_REQUEST
-            )
-        ps = get_product_by_price_range(price_range, currency)
-        return JsonResponse(ps, safe=False)
+        return get_products_list(price_range, currency)

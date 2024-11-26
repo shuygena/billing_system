@@ -1,5 +1,14 @@
 from django.db import connection
 
+def get_transaction(transaction_id):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT * FROM bs_app_transaction WHERE transaction_id = %s;", [transaction_id]
+        )
+        rows = cursor.fetchall()
+        columns = [col[0] for col in cursor.description]
+        transaction = dict(zip(columns, rows[0]))
+    return transaction
 
 def get_transactions_by_customer_id(customer_id):
     with connection.cursor() as cursor:
